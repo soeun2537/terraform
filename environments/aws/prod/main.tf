@@ -3,7 +3,6 @@ provider "aws" {
   access_key              = var.access_key
   secret_key              = var.secret_key
   token                   = var.session_token
-  shared_credentials_files = [var.shared_credentials_file]
   profile                 = var.profile
 }
 
