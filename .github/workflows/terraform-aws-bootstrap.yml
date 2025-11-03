@@ -39,6 +39,26 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
+      - name: Create tfvars file
+        env:
+          BOOTSTRAP_TFVARS_DEV: ${{ secrets.AWS_BOOTSTRAP_TFVARS_DEV }}
+          BOOTSTRAP_TFVARS_PROD: ${{ secrets.AWS_BOOTSTRAP_TFVARS_PROD }}
+        run: |
+          set -euo pipefail
+          BOOTSTRAP_ENV="$(echo "${{ github.event.inputs.environment }}" | tr '[:upper:]' '[:lower:]')"
+          if [ "$BOOTSTRAP_ENV" = "prod" ]; then
+            SECRET_CONTENT="$BOOTSTRAP_TFVARS_PROD"
+          else
+            SECRET_CONTENT="$BOOTSTRAP_TFVARS_DEV"
+          fi
+
+          if [ -z "$SECRET_CONTENT" ]; then
+            echo "❌ Missing bootstrap tfvars secret for environment '$BOOTSTRAP_ENV'." >&2
+            exit 1
+          fi
+
+          printf '%s\n' "$SECRET_CONTENT" | sed 's/\r$//' > terraform.tfvars
+
       - name: Terraform Init
         run: terraform init
 
