@@ -2,7 +2,7 @@ name: AWS Terraform Deployment
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "dev", "main" ]
     paths:
       - 'environments/aws/**'
       - 'modules/aws/**'
@@ -27,11 +27,12 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      TARGET_ENV: ${{ github.event.inputs.environment != '' && github.event.inputs.environment || 'dev' }}
+      TARGET_ENV: ${{ github.ref == 'refs/heads/main' && 'prod' || 'dev' }}
+      MANUAL_ENV: ${{ github.event.inputs.environment }}
 
     defaults:
       run:
-        working-directory: environments/aws/${{ env.TARGET_ENV }}
+        working-directory: environments/aws/${{ env.MANUAL_ENV != '' && env.MANUAL_ENV || env.TARGET_ENV }}
 
     steps:
       - name: Checkout repository
@@ -51,7 +52,7 @@ jobs:
 
       - name: Create tfvars file
         run: |
-          if [ "${{ env.TARGET_ENV }}" = "prod" ]; then
+          if [ "${{ env.MANUAL_ENV != '' && env.MANUAL_ENV || env.TARGET_ENV }}" = "prod" ]; then
             echo "${{ secrets.AWS_TFVARS_PROD }}" > terraform.tfvars
           else
             echo "${{ secrets.AWS_TFVARS_DEV }}" > terraform.tfvars
@@ -70,7 +71,7 @@ jobs:
           echo "exitcode=$?" >> $GITHUB_OUTPUT
 
       - name: Terraform Apply (only if changes exist)
-        if: steps.plan.outputs.exitcode == '2' && github.ref == 'refs/heads/main'
+        if: steps.plan.outputs.exitcode == '2'
         run: terraform apply -auto-approve tfplan
 
       - name: Skip Apply (no changes)
