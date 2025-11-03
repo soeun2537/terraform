@@ -2,7 +2,7 @@ name: AWS Terraform Deployment
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "dev", "main" ]
     paths:
       - 'environments/aws/**'
       - 'modules/aws/**'
@@ -12,6 +12,10 @@ on:
         description: '배포 대상 환경 (dev 또는 prod)'
         required: true
         default: 'dev'
+
+permissions:
+  contents: read
+  pull-requests: write
 
 env:
   TF_VERSION: 1.6.6
@@ -23,11 +27,12 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      TARGET_ENV: ${{ github.event.inputs.environment != '' && github.event.inputs.environment || 'dev' }}
+      TARGET_ENV: ${{ github.ref == 'refs/heads/main' && 'prod' || 'dev' }}
+      MANUAL_ENV: ${{ github.event.inputs.environment }}
 
     defaults:
       run:
-        working-directory: environments/aws/${{ env.TARGET_ENV }}
+        working-directory: environments/aws/${{ env.MANUAL_ENV != '' && env.MANUAL_ENV || env.TARGET_ENV }}
 
     steps:
       - name: Checkout repository
@@ -43,12 +48,11 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN || '' }}
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Create tfvars file
         run: |
-          if [ "${{ env.TARGET_ENV }}" = "prod" ]; then
+          if [ "${{ env.MANUAL_ENV != '' && env.MANUAL_ENV || env.TARGET_ENV }}" = "prod" ]; then
             echo "${{ secrets.AWS_TFVARS_PROD }}" > terraform.tfvars
           else
             echo "${{ secrets.AWS_TFVARS_DEV }}" > terraform.tfvars
@@ -67,7 +71,7 @@ jobs:
           echo "exitcode=$?" >> $GITHUB_OUTPUT
 
       - name: Terraform Apply (only if changes exist)
-        if: steps.plan.outputs.exitcode == '2' && github.ref == 'refs/heads/main'
+        if: steps.plan.outputs.exitcode == '2'
         run: terraform apply -auto-approve tfplan
 
       - name: Skip Apply (no changes)
