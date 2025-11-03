@@ -49,9 +49,9 @@ jobs:
       - name: Create tfvars file
         run: |
           if [ "${{ steps.envselect.outputs.env }}" = "prod" ]; then
-            echo "${{ secrets.AWS_TFVARS_PROD }}" > terraform.tfvars
+            echo "${{ secrets.AWS_TFVARS_PROD }}" > environments/aws/prod/terraform.tfvars
           else
-            echo "${{ secrets.AWS_TFVARS_DEV }}" > terraform.tfvars
+            echo "${{ secrets.AWS_TFVARS_DEV }}" > environments/aws/dev/terraform.tfvars
           fi
 
       - name: Set working directory
