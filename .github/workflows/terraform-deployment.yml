@@ -51,12 +51,24 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Create tfvars file
+        env:
+          AWS_TFVARS_DEV: ${{ secrets.AWS_TFVARS_DEV }}
+          AWS_TFVARS_PROD: ${{ secrets.AWS_TFVARS_PROD }}
         run: |
-          if [ "${{ env.MANUAL_ENV != '' && env.MANUAL_ENV || env.TARGET_ENV }}" = "prod" ]; then
-            echo "${{ secrets.AWS_TFVARS_PROD }}" > terraform.tfvars
+          set -euo pipefail
+          TARGET_ENV="${{ env.MANUAL_ENV != '' && env.MANUAL_ENV || env.TARGET_ENV }}"
+          if [ "$TARGET_ENV" = "prod" ]; then
+            SECRET_CONTENT="$AWS_TFVARS_PROD"
           else
-            echo "${{ secrets.AWS_TFVARS_DEV }}" > terraform.tfvars
+            SECRET_CONTENT="$AWS_TFVARS_DEV"
           fi
+
+          if [ -z "$SECRET_CONTENT" ]; then
+            echo "❌ Missing tfvars secret for environment '$TARGET_ENV'." >&2
+            exit 1
+          fi
+
+          printf '%s\n' "$SECRET_CONTENT" | sed 's/\r$//' > terraform.tfvars
 
       - name: Terraform Init
         run: terraform init
