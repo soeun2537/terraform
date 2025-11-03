@@ -3,9 +3,9 @@ name: AWS Terraform Deployment
 on:
   push:
     branches: [ "dev", "main" ]
-    paths:
-      - 'environments/aws/**'
-      - 'modules/aws/**'
+    # paths:
+    #   - 'environments/aws/**'
+    #   - 'modules/aws/**'
   workflow_dispatch:
     inputs:
       environment:
@@ -67,8 +67,10 @@ jobs:
       - name: Terraform Plan
         id: plan
         run: |
-          terraform plan -out=tfplan
-          echo "exitcode=$?" >> $GITHUB_OUTPUT
+          terraform plan -detailed-exitcode -out=tfplan
+          exitcode=$?
+          echo "Terraform exit code: $exitcode"
+          echo "exitcode=$exitcode" >> $GITHUB_OUTPUT
 
       - name: Terraform Apply (only if changes exist)
         if: steps.plan.outputs.exitcode == '2'
