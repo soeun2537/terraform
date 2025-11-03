@@ -3,36 +3,6 @@ variable "region" {
   type        = string
 }
 
-variable "access_key" {
-  description = "AWS access key ID. Leave empty if using shared credentials or other auth."
-  type        = string
-  default     = null
-}
-
-variable "secret_key" {
-  description = "AWS secret access key. Leave empty if using shared credentials or other auth."
-  type        = string
-  default     = null
-}
-
-variable "session_token" {
-  description = "AWS session token for temporary credentials."
-  type        = string
-  default     = null
-}
-
-variable "shared_credentials_file" {
-  description = "Path to the shared credentials file."
-  type        = string
-  default     = null
-}
-
-variable "profile" {
-  description = "AWS credentials profile to use."
-  type        = string
-  default     = null
-}
-
 variable "project_name" {
   description = "Project identifier used in resource names."
   type        = string
