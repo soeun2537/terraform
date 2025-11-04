@@ -79,10 +79,13 @@ jobs:
       - name: Terraform Plan
         id: plan
         run: |
+          set +e
           terraform plan -detailed-exitcode -out=tfplan
-          exitcode=$?
-          echo "Terraform exit code: $exitcode"
-          echo "exitcode=$exitcode" >> $GITHUB_OUTPUT
+          EXITCODE=$?
+          set -e
+
+          echo "Terraform exit code: $EXITCODE"
+          echo "exitcode=$EXITCODE" >> $GITHUB_OUTPUT
 
       - name: Terraform Apply (only if changes exist)
         if: steps.plan.outputs.exitcode == '2'
