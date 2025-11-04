@@ -50,24 +50,28 @@ jobs:
           fi
 
       - name: Create tfvars file
+        working-directory: environments/aws/${{ steps.envselect.outputs.env }}
+        env:
+          AWS_TFVARS_DEV: ${{ secrets.AWS_TFVARS_DEV }}
+          AWS_TFVARS_PROD: ${{ secrets.AWS_TFVARS_PROD }}
         run: |
+          set -euo pipefail
           if [ "${{ steps.envselect.outputs.env }}" = "prod" ]; then
-            echo "${{ secrets.AWS_TFVARS_PROD }}" > environments/aws/prod/terraform.tfvars
+            SECRET_CONTENT="$AWS_TFVARS_PROD"
           else
-            echo "${{ secrets.AWS_TFVARS_DEV }}" > environments/aws/dev/terraform.tfvars
+            SECRET_CONTENT="$AWS_TFVARS_DEV"
           fi
 
-      - name: Set working directory
-        run: |
-          if [ "${{ steps.envselect.outputs.env }}" = "prod" ]; then
-            echo "environments/aws/prod" >> $GITHUB_PATH
-          else
-            echo "environments/aws/dev" >> $GITHUB_PATH
+          if [ -z "$SECRET_CONTENT" ]; then
+            echo "❌ Missing tfvars secret for environment '${{ steps.envselect.outputs.env }}'." >&2
+            exit 1
           fi
+
+          printf '%s\n' "$SECRET_CONTENT" | sed 's/\r$//' > terraform.tfvars
 
       - name: Terraform Init
         working-directory: environments/aws/${{ steps.envselect.outputs.env }}
-        run: terraform init
+        run: terraform init -backend-config=backend.hcl -input=false -reconfigure
 
       - name: Terraform Validate
         working-directory: environments/aws/${{ steps.envselect.outputs.env }}

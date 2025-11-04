@@ -50,39 +50,38 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Configure remote backend
-        run: |
-          ENVIRONMENT=${{ env.MANUAL_ENV != '' && env.MANUAL_ENV || env.TARGET_ENV }}
-          WORKDIR="environments/aws/${ENVIRONMENT}"
-
-          mkdir -p "$WORKDIR"
-          cat > "$WORKDIR/backend.tf" <<EOF
-          terraform {
-            backend "s3" {
-              bucket         = "festabook-apne2-${ENVIRONMENT}-terraform-state"
-              key            = "aws/${ENVIRONMENT}/terraform.tfstate"
-              region         = "ap-northeast-2"
-              encrypt        = true
-            }
-          }
-          EOF
-
-          echo "backend.tf created in $WORKDIR"
-      
       - name: Create tfvars file
+        env:
+          AWS_TFVARS_DEV: ${{ secrets.AWS_TFVARS_DEV }}
+          AWS_TFVARS_PROD: ${{ secrets.AWS_TFVARS_PROD }}
         run: |
-          ENVIRONMENT=${{ env.MANUAL_ENV != '' && env.MANUAL_ENV || env.TARGET_ENV }}
-          if [ "$ENVIRONMENT" = "prod" ]; then
-            printf "%s\n" "${{ secrets.AWS_TFVARS_PROD }}" > terraform.tfvars
+          set -euo pipefail
+          TARGET_ENV="${{ env.MANUAL_ENV != '' && env.MANUAL_ENV || env.TARGET_ENV }}"
+          if [ "$TARGET_ENV" = "prod" ]; then
+            SECRET_CONTENT="$AWS_TFVARS_PROD"
           else
-            printf "%s\n" "${{ secrets.AWS_TFVARS_DEV }}" > terraform.tfvars
+            SECRET_CONTENT="$AWS_TFVARS_DEV"
           fi
 
-          echo "----- terraform.tfvars preview -----"
-          cat terraform.tfvars
+          if [ -z "$SECRET_CONTENT" ]; then
+            echo "❌ Missing tfvars secret for environment '$TARGET_ENV'." >&2
+            exit 1
+          fi
+
+          printf '%s\n' "$SECRET_CONTENT" | sed 's/\r$//' > terraform.tfvars
+
+      - name: Create backend.hcl
+        working-directory: environments/aws/${{ steps.envselect.outputs.env }}
+        run: |
+          cat > backend.hcl <<EOF
+          bucket         = "festabook-apne2-${{ steps.envselect.outputs.env }}-terraform-state"
+          key            = "aws/${{ steps.envselect.outputs.env }}/terraform.tfstate"
+          region         = "ap-northeast-2"
+          encrypt        = true
+          EOF
 
       - name: Terraform Init
-        run: terraform init -input=false -no-color -reconfigure
+        run: terraform init -backend-config=backend.hcl -input=false -no-color -reconfigure
 
       - name: Terraform Validate
         run: terraform validate
