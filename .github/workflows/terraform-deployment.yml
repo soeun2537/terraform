@@ -69,12 +69,10 @@ jobs:
           fi
 
           printf '%s\n' "$SECRET_CONTENT" | sed 's/\r$//' > terraform.tfvars
-      
+
       - name: Create backend.hcl
         run: |
           TARGET_ENV="${{ env.MANUAL_ENV != '' && env.MANUAL_ENV || env.TARGET_ENV }}"
-          mkdir -p environments/aws/$TARGET_ENV
-          cd environments/aws/$TARGET_ENV
           cat > backend.hcl <<EOF
           bucket  = "festabook-apne2-${TARGET_ENV}-terraform-state"
           key     = "aws/${TARGET_ENV}/terraform.tfstate"
@@ -83,21 +81,17 @@ jobs:
           EOF
 
       - name: Terraform Init
-        run: |
-          TARGET_ENV="${{ env.MANUAL_ENV != '' && env.MANUAL_ENV || env.TARGET_ENV }}"
-          cd environments/aws/$TARGET_ENV
-          terraform init -backend-config=backend.hcl -input=false -no-color -reconfigure
+        run: terraform init -backend-config=backend.hcl -input=false -no-color -reconfigure
 
       - name: Terraform Validate
         run: |
-          TARGET_ENV="${{ env.MANUAL_ENV != '' && env.MANUAL_ENV || env.TARGET_ENV }}"
-          cd environments/aws/$TARGET_ENV
           terraform init -backend-config=backend.hcl -input=false -no-color
           terraform validate -no-color
 
       - name: Terraform Plan
         id: plan
         run: |
+          terraform init -backend-config=backend.hcl -input=false -no-color
           set +e
           terraform plan -input=false -no-color -compact-warnings -detailed-exitcode -out=tfplan > plan.log 2>&1
           EXITCODE=$?
