@@ -80,10 +80,9 @@ jobs:
         id: plan
         run: |
           set +e
-          terraform plan -detailed-exitcode -out=tfplan
+          terraform plan -detailed-exitcode > plan.log
           EXITCODE=$?
           set -e
-
           echo "Terraform exit code: $EXITCODE"
           echo "exitcode=$EXITCODE" >> $GITHUB_OUTPUT
 
