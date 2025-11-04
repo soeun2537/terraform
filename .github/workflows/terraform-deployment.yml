@@ -69,19 +69,24 @@ jobs:
           fi
 
           printf '%s\n' "$SECRET_CONTENT" | sed 's/\r$//' > terraform.tfvars
-
+      
       - name: Create backend.hcl
-        working-directory: environments/aws/${{ steps.envselect.outputs.env }}
         run: |
+          TARGET_ENV="${{ env.MANUAL_ENV != '' && env.MANUAL_ENV || env.TARGET_ENV }}"
+          mkdir -p environments/aws/$TARGET_ENV
+          cd environments/aws/$TARGET_ENV
           cat > backend.hcl <<EOF
-          bucket         = "festabook-apne2-${{ steps.envselect.outputs.env }}-terraform-state"
-          key            = "aws/${{ steps.envselect.outputs.env }}/terraform.tfstate"
-          region         = "ap-northeast-2"
-          encrypt        = true
+          bucket  = "festabook-apne2-${TARGET_ENV}-terraform-state"
+          key     = "aws/${TARGET_ENV}/terraform.tfstate"
+          region  = "ap-northeast-2"
+          encrypt = true
           EOF
 
       - name: Terraform Init
-        run: terraform init -backend-config=backend.hcl -input=false -no-color -reconfigure
+        run: |
+          TARGET_ENV="${{ env.MANUAL_ENV != '' && env.MANUAL_ENV || env.TARGET_ENV }}"
+          cd environments/aws/$TARGET_ENV
+          terraform init -backend-config=backend.hcl -input=false -no-color -reconfigure
 
       - name: Terraform Validate
         run: terraform validate
