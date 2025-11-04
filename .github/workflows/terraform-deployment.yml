@@ -89,7 +89,11 @@ jobs:
           terraform init -backend-config=backend.hcl -input=false -no-color -reconfigure
 
       - name: Terraform Validate
-        run: terraform validate
+        run: |
+          TARGET_ENV="${{ env.MANUAL_ENV != '' && env.MANUAL_ENV || env.TARGET_ENV }}"
+          cd environments/aws/$TARGET_ENV
+          terraform init -backend-config=backend.hcl -input=false -no-color
+          terraform validate -no-color
 
       - name: Terraform Plan
         id: plan
