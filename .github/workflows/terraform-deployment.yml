@@ -50,28 +50,39 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Create tfvars file
-        env:
-          AWS_TFVARS_DEV: ${{ secrets.AWS_TFVARS_DEV }}
-          AWS_TFVARS_PROD: ${{ secrets.AWS_TFVARS_PROD }}
+      - name: Configure remote backend
         run: |
-          set -euo pipefail
-          TARGET_ENV="${{ env.MANUAL_ENV != '' && env.MANUAL_ENV || env.TARGET_ENV }}"
-          if [ "$TARGET_ENV" = "prod" ]; then
-            SECRET_CONTENT="$AWS_TFVARS_PROD"
+          ENVIRONMENT=${{ env.MANUAL_ENV != '' && env.MANUAL_ENV || env.TARGET_ENV }}
+          WORKDIR="environments/aws/${ENVIRONMENT}"
+
+          mkdir -p "$WORKDIR"
+          cat > "$WORKDIR/backend.tf" <<EOF
+          terraform {
+            backend "s3" {
+              bucket         = "festabook-apne2-${ENVIRONMENT}-terraform-state"
+              key            = "aws/${ENVIRONMENT}/terraform.tfstate"
+              region         = "ap-northeast-2"
+              encrypt        = true
+            }
+          }
+          EOF
+
+          echo "backend.tf created in $WORKDIR"
+      
+      - name: Create tfvars file
+        run: |
+          ENVIRONMENT=${{ env.MANUAL_ENV != '' && env.MANUAL_ENV || env.TARGET_ENV }}
+          if [ "$ENVIRONMENT" = "prod" ]; then
+            printf "%s\n" "${{ secrets.AWS_TFVARS_PROD }}" > terraform.tfvars
           else
-            SECRET_CONTENT="$AWS_TFVARS_DEV"
+            printf "%s\n" "${{ secrets.AWS_TFVARS_DEV }}" > terraform.tfvars
           fi
 
-          if [ -z "$SECRET_CONTENT" ]; then
-            echo "❌ Missing tfvars secret for environment '$TARGET_ENV'." >&2
-            exit 1
-          fi
-
-          printf '%s\n' "$SECRET_CONTENT" | sed 's/\r$//' > terraform.tfvars
+          echo "----- terraform.tfvars preview -----"
+          cat terraform.tfvars
 
       - name: Terraform Init
-        run: terraform init
+        run: terraform init -input=false -no-color -reconfigure
 
       - name: Terraform Validate
         run: terraform validate
@@ -80,11 +91,14 @@ jobs:
         id: plan
         run: |
           set +e
-          terraform plan -detailed-exitcode > plan.log
+          terraform plan -input=false -no-color -compact-warnings -detailed-exitcode -out=tfplan > plan.log 2>&1
           EXITCODE=$?
           set -e
+
           echo "Terraform exit code: $EXITCODE"
           echo "exitcode=$EXITCODE" >> $GITHUB_OUTPUT
+          echo "----- Terraform Plan Summary -----"
+          tail -n 30 plan.log || true
 
       - name: Terraform Apply (only if changes exist)
         if: steps.plan.outputs.exitcode == '2'
