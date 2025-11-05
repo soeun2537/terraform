@@ -95,20 +95,7 @@ jobs:
         id: plan
         run: |
           terraform init -backend-config=backend.hcl -input=false -no-color
-          set +e
-          terraform plan -input=false -no-color -compact-warnings -detailed-exitcode -out=tfplan > plan.log 2>&1
-          EXITCODE=$?
-          set -e
+          terraform plan -input=false -no-color -compact-warnings -out=tfplan
 
-          echo "Terraform exit code: $EXITCODE"
-          echo "exitcode=$EXITCODE" >> $GITHUB_OUTPUT
-          echo "----- Terraform Plan Summary -----"
-          tail -n 30 plan.log || true
-
-      - name: Terraform Apply (only if changes exist)
-        if: steps.plan.outputs.exitcode == '2'
+      - name: Terraform Apply
         run: terraform apply -auto-approve tfplan
-
-      - name: Skip Apply (no changes)
-        if: steps.plan.outputs.exitcode == '0'
-        run: echo "No infrastructure changes detected. Skipping apply."
