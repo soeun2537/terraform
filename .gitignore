@@ -6,6 +6,7 @@ backend.hcl
 *.tfstate.*
 crash.log
 crash.*.log
+*.b64
 
 # Local Terraform overrides
 override.tf

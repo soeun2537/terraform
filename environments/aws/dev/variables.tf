@@ -33,10 +33,21 @@ variable "ami_id" {
   default     = null
 }
 
+variable "ami_architecture" {
+  description = "기본 Amazon Linux 2023 AMI를 사용할 때 동일한 아키텍처를 선택합니다. 예: x86_64, arm64"
+  type        = string
+  default     = "arm64"
+
+  validation {
+    condition     = contains(["x86_64", "arm64"], var.ami_architecture)
+    error_message = "ami_architecture 값은 \"x86_64\" 또는 \"arm64\" 중 하나여야 합니다."
+  }
+}
+
 variable "instance_type" {
   description = "EC2 instance type."
   type        = string
-  default     = "t3.micro"
+  default     = "t4g.micro"
 }
 
 variable "associate_public_ip" {
